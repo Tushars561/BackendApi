@@ -2,10 +2,13 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Data;
 using System.Formats.Asn1;
 using System.Globalization;
 using WebApplication1.Entity;
+using WebApplication1.Service;
 
 namespace WebApplication1.Controllers
 {
@@ -13,13 +16,31 @@ namespace WebApplication1.Controllers
     [ApiController]
     public class UserController : ControllerBase
     {
-       
-        private readonly AppDbContext _context;
 
-        public UserController(AppDbContext context)
+
+        private static List<User> users = new List<User>(); // Replace with DB in real use
+        private readonly AppDbContext _context;
+        private readonly TokenService _tokenService;
+
+        public UserController(AppDbContext context, TokenService tokenService)
         {
             _context = context;
+            _tokenService = tokenService;
         }
+        //private readonly TokenService _tokenService;
+
+        //public UserController(TokenService tokenService)
+        //{
+        //    _tokenService = tokenService;
+        //}
+
+        //private readonly AppDbContext _context;
+
+        //public UserController(AppDbContext context)
+        //{
+        //    _context = context;
+        //}
+
 
         [HttpPost]
         public async Task<ActionResult<User>> CreateUser(User newUser)
@@ -105,7 +126,7 @@ namespace WebApplication1.Controllers
             return Ok(results);
         }
 
-        
+
 
         [HttpPost("bulk")]
         public async Task<ActionResult> BulkAddUsers(List<User> users)
@@ -152,30 +173,9 @@ namespace WebApplication1.Controllers
             return Ok(users);
         }
 
-        //[HttpPost("bulkAdd")]
-        //public async Task<ActionResult> BulkAddUsers([FromForm] IFormFile file)
-        //{
-        //    if (file == null || file.Length == 0)
-        //        return BadRequest("CSV file is empty.");
-
-        //    List<User> users;
-
-        //    using (var stream = new StreamReader(file.OpenReadStream()))
-        //    using (var csv = new CsvReader(stream, CultureInfo.InvariantCulture))
-        //    {
-        //        users = csv.GetRecords<User>().ToList();
-        //    }
-
-        //    if (!users.Any())
-        //        return BadRequest("No users found in CSV.");
-
-        //    await _context.Users.AddRangeAsync(users);
-        //    await _context.SaveChangesAsync();
-
-        //    return Ok(new { Message = $"{users.Count} users added successfully." });
-        //}
 
         [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadCsv([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -197,6 +197,68 @@ namespace WebApplication1.Controllers
                 return StatusCode(500, $"Failed to process file: {ex.Message}");
             }
         }
+        [HttpPost("SignUp")]
+        public async Task<ActionResult<User>> SignUp(User newUser)
+        {
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
 
+            return CreatedAtAction(nameof(GetUserById), new { id = newUser.Id }, newUser);
+        }
+
+        [HttpPost("login")]
+        public IActionResult Login([FromQuery] string email, [FromQuery] string password)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+                return BadRequest("Email and password are required.");
+
+            var user = _context.Users.SingleOrDefault(u => u.Email == email && u.Password == password);
+
+            if (user == null)
+                return Unauthorized("Invalid credentials.");
+
+            var token = _tokenService.CreateToken(user);
+
+            return Ok(new
+            {
+                Token = token,
+                User = new { user.Id, user.Name, user.Email }
+            });
+        }
+
+
+        public class FileUploadOperation : IOperationFilter
+        {
+            public void Apply(OpenApiOperation operation, OperationFilterContext context)
+            {
+                var hasFile = context.MethodInfo.GetParameters()
+                    .Any(p => p.ParameterType == typeof(IFormFile));
+
+                if (!hasFile) return;
+
+                operation.RequestBody = new OpenApiRequestBody
+                {
+                    Content =
+            {
+                ["multipart/form-data"] = new OpenApiMediaType
+                {
+                    Schema = new OpenApiSchema
+                    {
+                        Type = "object",
+                        Properties =
+                        {
+                            ["file"] = new OpenApiSchema
+                            {
+                                Type = "string",
+                                Format = "binary"
+                            }
+                        },
+                        Required = { "file" }
+                    }
+                }
+            }
+                };
+            }
+        }
     }
 }

@@ -97,6 +97,109 @@ namespace WebApplication1.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
-      
+
+        [HttpPost("upload-csv")]
+        public async Task<IActionResult> UploadCSV(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("CSV file is required.");
+
+            var todos = new List<TodoItem>();
+            int userId = GetUserIdFromToken(); // Your method to extract user ID from JWT
+
+            using (var stream = new StreamReader(file.OpenReadStream()))
+            {
+                bool isFirstLine = true;
+                while (!stream.EndOfStream)
+                {
+                    var line = await stream.ReadLineAsync();
+                    if (isFirstLine) { isFirstLine = false; continue; } // Skip header
+
+                    var parts = line.Split(',');
+                    if (parts.Length < 3) continue;
+
+                    todos.Add(new TodoItem
+                    {
+                        Title = parts[0].Trim(),
+                        Description = parts[1].Trim(),
+                        IsComplete = bool.Parse(parts[2].Trim()),
+                        UserId = userId
+                    });
+                }
+            }
+
+            _context.TodoItems.AddRange(todos);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Todos uploaded successfully", count = todos.Count });
+        }
+
+        [HttpGet("todo-count")]
+        [Authorize]
+        public IActionResult GetTodoCount()
+        {
+            int userId = GetUserIdFromToken();
+
+            var totalCount = _context.TodoItems
+                                     .Where(todo => todo.UserId == userId)
+                                     .Count();
+
+            var completedCount = _context.TodoItems
+                                         .Where(todo => todo.UserId == userId && todo.IsComplete)
+                                         .Count();
+
+            var pendingCount = totalCount - completedCount;
+
+            return Ok(new
+            {
+                userId = userId,
+                totalCount = totalCount,
+                pendingCount = pendingCount,
+                completedCount = completedCount
+            });
+        }
+
+        [HttpGet("search")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<TodoItem>>> SearchByTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return BadRequest("Title query parameter is required.");
+            }
+
+            int userId = GetUserIdFromToken();
+
+            var results = await _context.TodoItems
+                .Where(t => t.UserId == userId && EF.Functions.Like(t.Title, $"%{title}%"))
+                .ToListAsync();
+
+            return Ok(results);
+        }
+
+        //[HttpGet]
+        //[Authorize]
+        //public IActionResult GetTodos(int pageNumber = 1, int pageSize = 10)
+        //{
+        //    int userId = GetUserIdFromToken(); // Your JWT method
+
+        //    var todos = _context.TodoItems
+        //        .Where(todo => todo.UserId == userId)
+        //        .Skip((pageNumber - 1) * pageSize)
+        //        .Take(pageSize)
+        //        .ToList();
+
+        //    var totalCount = _context.TodoItems.Count(todo => todo.UserId == userId);
+
+        //    return Ok(new
+        //    {
+        //        data = todos,
+        //        totalCount = totalCount,
+        //        currentPage = pageNumber,
+        //        totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+        //    });
+        //}
+
+
     }
 }

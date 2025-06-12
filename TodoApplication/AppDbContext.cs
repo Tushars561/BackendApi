@@ -17,14 +17,14 @@ namespace WebApplication1
         public DbSet<TodoItem> TodoItems { get; set; } = null!;
         public DbSet<Note> Notes { get; set; }
 
-        //protected override void OnModelCreating(ModelBuilder modelBuilder)
-        //{
-        //    modelBuilder.Entity<TodoItem>()
-        //        .HasOne(t => t.User)
-        //        .WithMany(u => u.TodoItems)
-        //        .HasForeignKey(t => t.UserId)
-        //        .OnDelete(DeleteBehavior.Cascade); // Optional: deletes todos if user is deleted
-        //}
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TodoItem>()
+                .HasOne(t => t.User)
+                .WithMany(u => u.TodoItems)
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // Optional: deletes todos if user is deleted
+        }
 
     }
 }

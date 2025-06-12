@@ -11,9 +11,12 @@ namespace WebApplication1.Entity
         // Foreign key
         public int UserId { get; set; }
 
-        // Navigation property — Each todo belongs to one user
-        [JsonIgnore]
+        //Navigation property — Each todo belongs to one user
+       [JsonIgnore]
         public User? User { get; set; }
+        //public int UserId { get; set; }
+        //public User User { get; set; }
+
 
     }
 }

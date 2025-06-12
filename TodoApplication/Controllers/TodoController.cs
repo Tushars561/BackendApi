@@ -177,28 +177,7 @@ namespace WebApplication1.Controllers
             return Ok(results);
         }
 
-        //[HttpGet]
-        //[Authorize]
-        //public IActionResult GetTodos(int pageNumber = 1, int pageSize = 10)
-        //{
-        //    int userId = GetUserIdFromToken(); // Your JWT method
-
-        //    var todos = _context.TodoItems
-        //        .Where(todo => todo.UserId == userId)
-        //        .Skip((pageNumber - 1) * pageSize)
-        //        .Take(pageSize)
-        //        .ToList();
-
-        //    var totalCount = _context.TodoItems.Count(todo => todo.UserId == userId);
-
-        //    return Ok(new
-        //    {
-        //        data = todos,
-        //        totalCount = totalCount,
-        //        currentPage = pageNumber,
-        //        totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
-        //    });
-        //}
+       
 
 
     }
